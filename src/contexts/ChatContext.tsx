@@ -6,7 +6,7 @@ import React, {
   useEffect,
   ReactNode
 } from 'react'
-import Pusher from 'pusher-js'
+import { io, Socket } from 'socket.io-client'
 import { useAuth } from './AuthContext'
 
 interface ChatContextValue {
@@ -17,85 +17,64 @@ interface ChatContextValue {
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null)
-const API            = import.meta.env.VITE_API_BASE as string   // es. '/api'
-const PUSHER_KEY     = import.meta.env.VITE_PUSHER_KEY!
-const PUSHER_CLUSTER = import.meta.env.VITE_PUSHER_CLUSTER!
+const API = import.meta.env.VITE_API_BASE as string    // es. '/api'
+const SOCKET_URL = import.meta.env.VITE_CHAT_SERVER_URL as string
 
-function makePusher() {
-  return new Pusher(PUSHER_KEY, {
-    cluster: PUSHER_CLUSTER,
-    forceTLS: true,
-    authorizer: (channel) => ({
-      authorize: (socketId, callback) => {
-        const body = new URLSearchParams({
-          socket_id: socketId,
-          channel_name: channel.name
-        })
-
-        fetch(`${API}/chat/auth.php`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body
-        })
-          .then(res => {
-            if (res.status === 403) {
-              throw new Error('Non autorizzato')
-            }
-            if (!res.ok) {
-              throw new Error(`Auth fallita (${res.status})`)
-            }
-            return res.json()
-          })
-          .then(data => {
-            callback(null, data.auth)
-          })
-          .catch(err => {
-            console.error('Pusher auth error:', err)
-            callback(err, {} as any)
-          })
-      }
-    })
+function makeSocket(): Socket {
+  return io(SOCKET_URL, {
+    transports: ['websocket'],
+    withCredentials: true
   })
 }
 
 export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth()
-  const userId   = user!.id
-  const [hasUnreadUser,  setHasUnreadUser]  = useState(false)
+  const userId = user!.id
+  const [hasUnreadUser, setHasUnreadUser] = useState(false)
   const [hasUnreadAdmin, setHasUnreadAdmin] = useState(false)
 
   useEffect(() => {
     if (!user) return
-    const pusher = makePusher()
+    const socket = makeSocket()
 
     if (user.role === 'admin') {
+      // Admin: join every patient's room and listen for user messages
       fetch(`${API}/patients/list.php`, { credentials: 'include' })
         .then(r => r.json())
         .then((list: { user_id: number }[]) => {
           list.forEach(p => {
-            const ch = pusher.subscribe(`private-chat-${p.user_id}`)
-            ch.bind('new-message', (m: any) => {
-              if (m.user === 'user') setHasUnreadAdmin(true)
-            })
+            const room = `private-chat-${p.user_id}`
+            socket.emit('join', room)
           })
         })
         .catch(console.error)
+
+      socket.on('message', (m: any) => {
+        if (m.user === 'user') {
+          setHasUnreadAdmin(true)
+        }
+      })
     } else {
-      const ch = pusher.subscribe(`private-chat-${userId}`)
-      ch.bind('new-message', (m: any) => {
-        if (m.user === 'admin') setHasUnreadUser(true)
+      // User: join own room and listen for admin messages
+      const room = `private-chat-${userId}`
+      socket.emit('join', room)
+      socket.on('message', (m: any) => {
+        if (m.user === 'admin') {
+          setHasUnreadUser(true)
+        }
       })
     }
 
-    return () => { pusher.disconnect() }
+    return () => {
+      socket.disconnect()
+    }
   }, [user, userId])
 
   return (
     <ChatContext.Provider
       value={{
         hasUnreadUser,
-        markUserRead:  () => setHasUnreadUser(false),
+        markUserRead: () => setHasUnreadUser(false),
         hasUnreadAdmin,
         markAdminRead: () => setHasUnreadAdmin(false)
       }}

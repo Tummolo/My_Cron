@@ -1,4 +1,3 @@
-// src/components/Chat.tsx
 import React, { FC, useEffect, useState, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import {
@@ -26,7 +25,8 @@ const Chat: FC = () => {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
-  const socketRef = useRef<Socket>();
+  // inizializziamo la ref a null
+  const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
     const socket = makeSocket();
@@ -34,12 +34,12 @@ const Chat: FC = () => {
     const room = `private-chat-${userId}`;
     socket.emit('join', room);
 
-    // Ricevo messaggi real-time
+    // messaggi realtime
     socket.on('message', (m: Msg) => {
       setMsgs(ms => [...ms, m]);
     });
 
-    // Carico la cronologia
+    // carica cronologia
     fetch(`${API}/chat/history.php?user_id=${userId}`, {
       credentials: 'include'
     })
@@ -50,7 +50,8 @@ const Chat: FC = () => {
       .catch(console.error);
 
     return () => {
-      socket.disconnect();
+      socketRef.current?.disconnect();
+      socketRef.current = null;
     };
   }, [userId]);
 
@@ -121,3 +122,4 @@ const Chat: FC = () => {
   );
 };
 
+export default Chat;

@@ -11,19 +11,32 @@ import SendIcon from '@mui/icons-material/Send';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
 
-interface Msg { user:'user'|'admin'; text:string; ts:number }
-interface Patient { user_id:number; nome:string; cognome:string }
+interface Msg {
+  room: string;
+  user: 'user'|'admin';
+  text: string;
+  ts: number;
+}
+interface Patient {
+  user_id: number;
+  nome: string;
+  cognome: string;
+}
 
 const API = import.meta.env.VITE_API_BASE as string;
 const SOCKET_URL = import.meta.env.VITE_CHAT_SERVER_URL as string;
 
 function makeSocket(): Socket {
-  return io(SOCKET_URL, { transports:['websocket'], withCredentials: true });
+  return io(SOCKET_URL, {
+    transports: ['websocket'],
+    withCredentials: true
+  });
 }
 
 const ChatAdmin: FC = () => {
   const { user } = useAuth();
   const { markAdminRead } = useChat();
+
   const [patients, setPatients] = useState<Patient[]>([]);
   const [sel, setSel] = useState<Patient|null>(null);
   const [unread, setUnread] = useState<Record<string,boolean>>({});
@@ -32,56 +45,86 @@ const ChatAdmin: FC = () => {
   const endRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket>();
 
+  // 1) Carica i pazienti E apri la socket
   useEffect(() => {
     fetch(`${API}/patients/list.php`, { credentials: 'include' })
       .then(r => r.json())
-      .then(setPatients)
-      .catch(console.error);
-  }, []);
+      .then((list: Patient[]) => {
+        setPatients(list);
 
-  useEffect(() => {
-    if (!sel) return;
-    markAdminRead();
-    setMsgs([]);
-    const room = `private-chat-${sel.user_id}`;
-    setUnread(u => ({ ...u, [room]: false }));
+        const socket = makeSocket();
+        socketRef.current = socket;
 
-    const socket = makeSocket();
-    socketRef.current = socket;
-    socket.emit('join', room);
+        // join di tutte le stanze e inizializzo unread a false
+        list.forEach(p => {
+          const room = `private-chat-${p.user_id}`;
+          socket.emit('join', room);
+          setUnread(u => ({ ...u, [room]: false }));
+        });
 
-    socket.on('message', (m: Msg) => {
-      setMsgs(ms => [...ms, m]);
-      setUnread(u => ({ ...u, [room]: true }));
-    });
+        // handler unico per TUTTI i messaggi
+        socket.on('message', (m: Msg) => {
+          const { room, user, text, ts } = m;
 
-    // carica storia
-    fetch(`${API}/chat/history.php?user_id=${sel.user_id}`, { credentials: 'include' })
-      .then(r => r.json())
-      .then((raw: any[]) => {
-        setMsgs(raw.map(m => ({ user: m.user, text: m.text, ts: +m.ts })));
+          if (sel && room === `private-chat-${sel.user_id}`) {
+            // stanza attiva → mostro subito
+            setMsgs(ms => [...ms, m]);
+          } else {
+            // stanza inattiva → segno unread
+            setUnread(u => ({ ...u, [room]: true }));
+          }
+        });
       })
       .catch(console.error);
 
     return () => {
-      socket.disconnect();
+      socketRef.current?.disconnect();
     };
+  // dipendo solo da sel per ri-aggiornare la closure su `sel`
+  }, [sel]);
+
+  // 2) Quando cambio paziente selezionato → carico storia e azzero unread
+  useEffect(() => {
+    if (!sel) return;
+
+    markAdminRead();
+    setMsgs([]);
+
+    const room = `private-chat-${sel.user_id}`;
+    setUnread(u => ({ ...u, [room]: false }));
+
+    // carico cronologia via REST
+    fetch(`${API}/chat/history.php?user_id=${sel.user_id}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then((raw: any[]) => {
+        setMsgs(raw.map(m => ({
+          room,
+          user: m.user,
+          text: m.text,
+          ts: +m.ts
+        })));
+      })
+      .catch(console.error);
   }, [sel, markAdminRead]);
 
+  // 3) scroll in fondo ad ogni nuovo messaggio
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [msgs]);
 
+  // 4) invio messaggio da admin
   const send = () => {
     if (!sel || !input.trim()) return;
-    const txt = input.trim();
-    const ts = Date.now();
-    const message: Msg = { user: 'admin', text: txt, ts };
-    setMsgs(ms => [...ms, message]);
-    setInput('');
-
     const room = `private-chat-${sel.user_id}`;
-    socketRef.current?.emit('message', { room, ...message });
+    const message: Msg = {
+      room,
+      user: 'admin',
+      text: input.trim(),
+      ts: Date.now()
+    };
+    setInput('');
+    // do io al server il payload completo, che poi ritrasmetterà a tutti in stanza
+    socketRef.current?.emit('message', message);
   };
 
   return (
@@ -107,7 +150,14 @@ const ChatAdmin: FC = () => {
                     <Avatar><ChatBubbleIcon/></Avatar>
                   </Badge>
                 </ListItemAvatar>
-                <ListItemText primary={`${p.nome} ${p.cognome}`} />
+                <Badge
+                  color="error"
+                  variant="dot"
+                  invisible={!unread[room]}
+                  sx={{ ml: 1 }}
+                >
+                  <ListItemText primary={`${p.nome} ${p.cognome}`} />
+                </Badge>
               </ListItemButton>
             );
           })}
@@ -117,29 +167,57 @@ const ChatAdmin: FC = () => {
       {sel ? (
         <Box flexGrow={1} display="flex" flexDirection="column" p={2}>
           <Typography variant="h6">Chat con {sel.nome}</Typography>
-          <Paper sx={{ flex:1, p:1, overflowY: 'auto', mb:2 }}>
+          <Paper sx={{ flex:1, p:1, overflowY:'auto', mb:2 }}>
             {msgs.map((m, i) => {
-              const time = new Date(m.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+              const time = new Date(m.ts)
+                .toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
               return (
-                <Box key={i} display="flex" justifyContent={m.user==='admin' ? 'flex-end' : 'flex-start'} mb={1}>
-                  <Box px={2} py={1} bgcolor={m.user==='admin' ? 'primary.main' : 'grey.300'} color={m.user==='admin' ? 'primary.contrastText' : 'black'} borderRadius={2} position="relative" maxWidth="60%">
+                <Box
+                  key={i}
+                  display="flex"
+                  justifyContent={m.user==='admin' ? 'flex-end' : 'flex-start'}
+                  mb={1}
+                >
+                  <Box
+                    px={2} py={1}
+                    bgcolor={m.user==='admin' ? 'primary.main' : 'grey.300'}
+                    color={m.user==='admin' ? 'primary.contrastText' : 'black'}
+                    borderRadius={2}
+                    position="relative"
+                    maxWidth="60%"
+                  >
                     {m.text}
-                    <Typography component="span" sx={{ position:'absolute', bottom:-16, right:4, fontSize:'0.625rem', color: m.user==='admin' ? 'primary.contrastText' : 'text.secondary' }}>
+                    <Typography
+                      component="span"
+                      sx={{
+                        position:'absolute', bottom:-16, right:4,
+                        fontSize:'0.625rem',
+                        color: m.user==='admin' ? 'primary.contrastText' : 'text.secondary'
+                      }}
+                    >
                       {time}
                     </Typography>
                   </Box>
                 </Box>
               );
             })}
-            <div ref={endRef} />
+            <div ref={endRef}/>
           </Paper>
+
           <Box display="flex">
             <TextField
-              fullWidth placeholder="Scrivi..." value={input}
+              fullWidth
+              placeholder="Scrivi..."
+              value={input}
               onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key==='Enter' && !e.shiftKey && (e.preventDefault(), send())}
+              onKeyDown={e =>
+                e.key==='Enter' && !e.shiftKey &&
+                (e.preventDefault(), send())
+              }
             />
-            <IconButton onClick={send} color="primary"><SendIcon/></IconButton>
+            <IconButton onClick={send} color="primary">
+              <SendIcon/>
+            </IconButton>
           </Box>
         </Box>
       ) : (
@@ -151,4 +229,4 @@ const ChatAdmin: FC = () => {
   );
 };
 
-export { Chat, ChatAdmin };
+export default ChatAdmin;
