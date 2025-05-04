@@ -1,4 +1,3 @@
-// src/components/ChatAdmin.tsx
 import React, { FC, useEffect, useState, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import {
@@ -43,34 +42,32 @@ const ChatAdmin: FC = () => {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
-  const socketRef = useRef<Socket>();
+  const socketRef = useRef<Socket | null>(null);
 
-  // 1) Carica i pazienti E apri la socket
+  // 1) Carico lista e apro la socket
   useEffect(() => {
     fetch(`${API}/patients/list.php`, { credentials: 'include' })
       .then(r => r.json())
       .then((list: Patient[]) => {
         setPatients(list);
-
         const socket = makeSocket();
         socketRef.current = socket;
 
-        // join di tutte le stanze e inizializzo unread a false
+        // join a tutte le stanze e set unread = false
         list.forEach(p => {
           const room = `private-chat-${p.user_id}`;
           socket.emit('join', room);
           setUnread(u => ({ ...u, [room]: false }));
         });
 
-        // handler unico per TUTTI i messaggi
+        // ricevo tutti i messaggi
         socket.on('message', (m: Msg) => {
-          const { room, user, text, ts } = m;
-
+          const { room } = m;
           if (sel && room === `private-chat-${sel.user_id}`) {
-            // stanza attiva → mostro subito
+            // stanza attiva → aggiornamento chat corrente
             setMsgs(ms => [...ms, m]);
           } else {
-            // stanza inattiva → segno unread
+            // stanza inattiva → segno come non letta
             setUnread(u => ({ ...u, [room]: true }));
           }
         });
@@ -79,21 +76,19 @@ const ChatAdmin: FC = () => {
 
     return () => {
       socketRef.current?.disconnect();
+      socketRef.current = null;
     };
-  // dipendo solo da sel per ri-aggiornare la closure su `sel`
+  // dipendo solo da `sel` per aggiornare il handler interno
   }, [sel]);
 
-  // 2) Quando cambio paziente selezionato → carico storia e azzero unread
+  // 2) Quando cambio paziente selezionato → azzero badge e carico storia
   useEffect(() => {
     if (!sel) return;
-
     markAdminRead();
     setMsgs([]);
-
     const room = `private-chat-${sel.user_id}`;
     setUnread(u => ({ ...u, [room]: false }));
 
-    // carico cronologia via REST
     fetch(`${API}/chat/history.php?user_id=${sel.user_id}`, { credentials: 'include' })
       .then(r => r.json())
       .then((raw: any[]) => {
@@ -107,12 +102,12 @@ const ChatAdmin: FC = () => {
       .catch(console.error);
   }, [sel, markAdminRead]);
 
-  // 3) scroll in fondo ad ogni nuovo messaggio
+  // 3) scroll automatico
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [msgs]);
 
-  // 4) invio messaggio da admin
+  // 4) invio messaggio
   const send = () => {
     if (!sel || !input.trim()) return;
     const room = `private-chat-${sel.user_id}`;
@@ -123,7 +118,7 @@ const ChatAdmin: FC = () => {
       ts: Date.now()
     };
     setInput('');
-    // do io al server il payload completo, che poi ritrasmetterà a tutti in stanza
+    // il server rilancerà solo agli altri nella stanza
     socketRef.current?.emit('message', message);
   };
 
@@ -141,6 +136,7 @@ const ChatAdmin: FC = () => {
                 onClick={() => setSel(p)}
               >
                 <ListItemAvatar>
+                  {/* badge sull'avatar */}
                   <Badge
                     color="error"
                     variant="dot"
@@ -150,6 +146,8 @@ const ChatAdmin: FC = () => {
                     <Avatar><ChatBubbleIcon/></Avatar>
                   </Badge>
                 </ListItemAvatar>
+
+                {/* badge accanto al nome */}
                 <Badge
                   color="error"
                   variant="dot"
@@ -206,8 +204,7 @@ const ChatAdmin: FC = () => {
 
           <Box display="flex">
             <TextField
-              fullWidth
-              placeholder="Scrivi..."
+              fullWidth placeholder="Scrivi..."
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e =>

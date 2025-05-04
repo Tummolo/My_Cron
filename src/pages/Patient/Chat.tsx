@@ -25,7 +25,6 @@ const Chat: FC = () => {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
-  // inizializziamo la ref a null
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -34,12 +33,12 @@ const Chat: FC = () => {
     const room = `private-chat-${userId}`;
     socket.emit('join', room);
 
-    // messaggi realtime
+    // ricevo solo i messaggi di altri (il mio lo aggiungo localmente)
     socket.on('message', (m: Msg) => {
       setMsgs(ms => [...ms, m]);
     });
 
-    // carica cronologia
+    // carico cronologia
     fetch(`${API}/chat/history.php?user_id=${userId}`, {
       credentials: 'include'
     })
@@ -50,7 +49,7 @@ const Chat: FC = () => {
       .catch(console.error);
 
     return () => {
-      socketRef.current?.disconnect();
+      socket.disconnect();
       socketRef.current = null;
     };
   }, [userId]);
@@ -64,9 +63,11 @@ const Chat: FC = () => {
     if (!txt) return;
     const ts = Date.now();
     const message: Msg = { user: 'user', text: txt, ts };
+    // 1) aggiorno subito la UI
     setMsgs(ms => [...ms, message]);
     setInput('');
 
+    // 2) mando al server (a lui che poi rilancia agli altri)
     const room = `private-chat-${userId}`;
     socketRef.current?.emit('message', { room, ...message });
   };
