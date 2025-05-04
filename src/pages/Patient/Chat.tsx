@@ -1,6 +1,6 @@
 // src/components/Chat.tsx
 import React, { FC, useEffect, useState, useRef } from 'react';
-import Pusher from 'pusher-js';
+import { io, Socket } from 'socket.io-client';
 import {
   Box, Typography, Paper, List, ListItem,
   TextField, IconButton
@@ -11,20 +11,11 @@ import { useAuth } from '../../contexts/AuthContext';
 interface Msg { user: 'user'|'admin'; text: string; ts: number }
 
 const API = import.meta.env.VITE_API_BASE as string;
-const PUSHER_KEY = import.meta.env.VITE_PUSHER_KEY!;
-const CLUSTER    = import.meta.env.VITE_PUSHER_CLUSTER!;
+const SOCKET_URL = import.meta.env.VITE_CHAT_SERVER_URL as string;
 
-function makePusher() {
-  // DEBUG: vedi cosa succede in console
-  Pusher.logToConsole = true;
-
-  return new Pusher(PUSHER_KEY, {
-    cluster: CLUSTER,
-    forceTLS: true,
-    authEndpoint: `${API}/chat/auth.php`,
-    auth: {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-    },
+function makeSocket(): Socket {
+  return io(SOCKET_URL, {
+    transports: ['websocket'],
     withCredentials: true
   });
 }
@@ -35,39 +26,31 @@ const Chat: FC = () => {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<Socket>();
 
   useEffect(() => {
-    const pusher = makePusher();
-    const channel = pusher.subscribe(`private-chat-${userId}`);
+    const socket = makeSocket();
+    socketRef.current = socket;
+    const room = `private-chat-${userId}`;
+    socket.emit('join', room);
 
-    channel.bind('pusher:subscription_succeeded', () => {
-      // sottoscritto, carico la cronologia
-      fetch(`${API}/chat/history.php?user_id=${userId}`, {
-        credentials: 'include'
+    // Ricevo messaggi real-time
+    socket.on('message', (m: Msg) => {
+      setMsgs(ms => [...ms, m]);
+    });
+
+    // Carico la cronologia
+    fetch(`${API}/chat/history.php?user_id=${userId}`, {
+      credentials: 'include'
+    })
+      .then(r => r.json())
+      .then((raw: any[]) => {
+        setMsgs(raw.map(m => ({ user: m.user, text: m.text, ts: +m.ts })));
       })
-        .then(r => r.json())
-        .then((raw: any[]) => {
-          setMsgs(raw.map(m => ({
-            user: m.user,
-            text: m.text,
-            ts: +m.ts
-          })));
-        })
-        .catch(console.error);
-    });
-
-    channel.bind('new-message', (m: Msg) => {
-      setMsgs(ms => [...ms, {
-        user: m.user,
-        text: m.text,
-        ts: +m.ts
-      }]);
-    });
+      .catch(console.error);
 
     return () => {
-      channel.unbind_all();
-      pusher.unsubscribe(`private-chat-${userId}`);
-      pusher.disconnect();
+      socket.disconnect();
     };
   }, [userId]);
 
@@ -79,20 +62,12 @@ const Chat: FC = () => {
     const txt = input.trim();
     if (!txt) return;
     const ts = Date.now();
-    setMsgs(ms => [...ms, { user: 'user', text: txt, ts }]);
+    const message: Msg = { user: 'user', text: txt, ts };
+    setMsgs(ms => [...ms, message]);
     setInput('');
 
-    fetch(`${API}/chat/save.php`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: userId,
-        sender: 'user',
-        text: txt,
-        ts
-      })
-    }).catch(console.error);
+    const room = `private-chat-${userId}`;
+    socketRef.current?.emit('message', { room, ...message });
   };
 
   return (
@@ -100,7 +75,7 @@ const Chat: FC = () => {
       <Typography variant="h5">💬 Chat</Typography>
       <Paper sx={{ flex:1, p:1, my:2, overflowY:'auto' }}>
         <List>
-          {msgs.map((m,i) => (
+          {msgs.map((m, i) => (
             <ListItem
               key={i}
               sx={{ justifyContent: m.user==='user' ? 'flex-end' : 'flex-start' }}
@@ -136,10 +111,7 @@ const Chat: FC = () => {
           placeholder="Scrivi..."
           value={input}
           onChange={e => setInput(e.target.value)}
-          onKeyDown={e =>
-            e.key==='Enter' && !e.shiftKey &&
-            (e.preventDefault(), send())
-          }
+          onKeyDown={e => e.key==='Enter' && !e.shiftKey && (e.preventDefault(), send())}
         />
         <IconButton onClick={send} color="primary">
           <SendIcon/>
@@ -149,4 +121,3 @@ const Chat: FC = () => {
   );
 };
 
-export default Chat;
