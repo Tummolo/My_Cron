@@ -1,6 +1,6 @@
 // src/layouts/PatientLayout.tsx
 import React, { useEffect, useState } from 'react';
-import { Routes, Route, Navigate, Link, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import {
   AppBar,
   Toolbar,
@@ -8,7 +8,6 @@ import {
   IconButton,
   Box,
   CssBaseline,
-  Container,
   Badge,
   Drawer,
   List,
@@ -17,7 +16,6 @@ import {
   ListItemText,
   Divider,
   useTheme,
-  // useMediaQuery // Non più strettamente necessario per la logica del drawer
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -42,6 +40,9 @@ import Diario from '../pages/Patient/Diario';
 import Terapia from '../pages/Patient/Terapia';
 import Chat from '../pages/Patient/Chat';
 
+// Import del logo
+import logo from '../img/logo.png';
+
 const drawerWidth = 240;
 
 export default function PatientLayout({ user }: any) {
@@ -49,17 +50,20 @@ export default function PatientLayout({ user }: any) {
   const { hasUnreadUser, markUserRead } = useChat();
   const [mobileOpen, setMobileOpen] = useState(false);
   const theme = useTheme();
-  // const isMobile = useMediaQuery(theme.breakpoints.down('sm'), { noSsr: true }); // Mantenuto se serve per altro, ma non per il drawer
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Chiude il drawer alla navigazione (ora sempre, non solo su mobile)
+  // Chiude il drawer alla navigazione
   useEffect(() => {
-    if (mobileOpen) setMobileOpen(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]); // Aggiunto commento per disabilitare warning exhaustive-deps se necessario
+    if (mobileOpen) {
+      setMobileOpen(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
-  const handleDrawerToggle = () => setMobileOpen((prev) => !prev);
+  const handleDrawerToggle = () => {
+    setMobileOpen((prev) => !prev);
+  };
 
   const menuItems = [
     { text: 'Home', icon: <HomeIcon />, path: '/home' },
@@ -68,14 +72,23 @@ export default function PatientLayout({ user }: any) {
     { text: 'Acutizzazioni', icon: <BuildIcon />, path: '/acutizzazioni' },
     { text: 'Diario', icon: <ShowChartIcon />, path: '/diario' },
     { text: 'Terapia', icon: <MedicalServicesIcon />, path: '/terapia' },
-    { text: 'Chat', icon: <ChatIcon />, path: '/chat', badge: hasUnreadUser, action: () => { markUserRead(); navigate('/chat'); } },
-    { text: 'Logout', icon: <LogoutIcon />, action: () => { logout(); navigate('/login'); } },
+    {
+      text: 'Chat',
+      icon: <ChatIcon />,
+      path: '/chat',
+      badge: hasUnreadUser,
+      action: () => { markUserRead(); navigate('/chat'); },
+    },
+    {
+      text: 'Logout',
+      icon: <LogoutIcon />,
+      action: () => { logout(); navigate('/login'); },
+    },
   ];
 
-  // Contenuto del drawer (senza titolo "My Cron")
+  // Contenuto del drawer
   const drawerContent = (
     <Box sx={{ width: drawerWidth, height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Aggiunge uno spazio vuoto in cima alto come la Toolbar per non sovrapporre il contenuto */}
       <Toolbar />
       <Divider />
       <List sx={{ flexGrow: 1 }}>
@@ -83,11 +96,16 @@ export default function PatientLayout({ user }: any) {
           <ListItemButton
             key={item.text}
             onClick={() => (item.action ? item.action() : navigate(item.path!))}
-            // Opzionale: Evidenzia l'elemento attivo
             selected={location.pathname === item.path}
           >
             <ListItemIcon>
-              {item.badge ? <Badge color="error" variant="dot">{item.icon}</Badge> : item.icon}
+              {item.badge ? (
+                <Badge color="error" variant="dot">
+                  {item.icon}
+                </Badge>
+              ) : (
+                item.icon
+              )}
             </ListItemIcon>
             <ListItemText primary={item.text} />
           </ListItemButton>
@@ -104,34 +122,40 @@ export default function PatientLayout({ user }: any) {
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
       <CssBaseline />
-      {/* AppBar sempre visibile */}
+
+      {/* AppBar con logo */}
       <AppBar position="fixed" sx={{ zIndex: theme.zIndex.drawer + 1 }}>
-        <Toolbar>
-          {/* IconButton del menu sempre visibile */}
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2 }} // Mantiene un margine a destra
-          >
-            <MenuIcon />
-          </IconButton>
-          {/* Titolo "My Cron" nell'AppBar */}
-          <Typography variant="h6" noWrap component="div">
-            My Cron
-          </Typography>
+        <Toolbar sx={{ justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+            {/* Logo a sinistra */}
+            <Box
+              component="img"
+              src={logo}
+              alt="My Cron Logo"
+              sx={{ height: 48, width: 'auto', mr: 1 }}
+            />
+            <Typography variant="h6" noWrap component="div">
+              My Cron
+            </Typography>
+          </Box>
         </Toolbar>
       </AppBar>
 
-      {/* Drawer sempre temporaneo */}
+      {/* Drawer lato */}
       <Drawer
         variant="temporary"
         open={mobileOpen}
         onClose={handleDrawerToggle}
-        ModalProps={{
-          keepMounted: true, // Better open performance on mobile.
-        }}
+        ModalProps={{ keepMounted: true }}
         sx={{
           '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
         }}
@@ -139,32 +163,28 @@ export default function PatientLayout({ user }: any) {
         {drawerContent}
       </Drawer>
 
-      {/* Contenuto Principale senza margine sinistro fisso */}
+      {/* Contenuto principale */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
           p: 3,
-          // Rimuove il margine sinistro condizionale: ml: !isMobile ? `${drawerWidth}px` : 0
-          ml: 0, // Il margine sinistro è sempre 0 perché il drawer è temporaneo
-          mt: `${theme.mixins.toolbar.minHeight}px`, // Mantiene il margine superiore per l'AppBar
-          width: '100%', // Assicura che prenda tutta la larghezza disponibile
-          overflowY: 'auto' // Aggiunge scroll verticale se necessario
+          ml: 0,
+          mt: `${theme.mixins.toolbar.minHeight}px`,
+          width: '100%',
+          overflowY: 'auto',
         }}
       >
-        {/* Rimuove Container da qui se vuoi che le pagine controllino il loro container */}
-        {/* <Container> */}
-          <Routes>
-            <Route path="/home" element={<Home />} />
-            <Route path="/educazione" element={<Educazione />} />
-            <Route path="/segnali" element={<Segnali />} />
-            <Route path="/acutizzazioni" element={<Acutizzazioni />} />
-            <Route path="/diario" element={<Diario />} />
-            <Route path="/terapia" element={<Terapia />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="*" element={<Navigate to="/home" replace />} />
-          </Routes>
-        {/* </Container> */}
+        <Routes>
+          <Route path="/home" element={<Home />} />
+          <Route path="/educazione" element={<Educazione />} />
+          <Route path="/segnali" element={<Segnali />} />
+          <Route path="/acutizzazioni" element={<Acutizzazioni />} />
+          <Route path="/diario" element={<Diario />} />
+          <Route path="/terapia" element={<Terapia />} />
+          <Route path="/chat" element={<Chat />} />
+          <Route path="*" element={<Navigate to="/home" replace />} />
+        </Routes>
       </Box>
     </Box>
   );

@@ -1,5 +1,3 @@
-// src/pages/Auth/Login.tsx
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth }     from '../../contexts/AuthContext';
@@ -11,6 +9,9 @@ import {
   Button,
   Alert
 } from '@mui/material';
+
+// Import logo
+import logo from '../../img/logo.jpeg';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -50,9 +51,18 @@ export default function LoginPage() {
           p: 4,
           display: 'flex',
           flexDirection: 'column',
-          gap: 2
+          gap: 1  // ridotto da 2 a 1 (8px)
         }}
       >
+        {/* Logo */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 0 }}>
+          <img
+            src={logo}
+            alt="My Cron Logo"
+            style={{ width: 120, height: 'auto', objectFit: 'contain' }}
+          />
+        </Box>
+
         <Typography variant="h5" align="center">
           Accedi a My Cron
         </Typography>

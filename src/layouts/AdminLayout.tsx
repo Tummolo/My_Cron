@@ -1,3 +1,4 @@
+// src/layouts/AdminLayout.tsx
 import React from 'react';
 import {
   AppBar,
@@ -33,6 +34,9 @@ import Statistiche      from '../pages/Admin/Statistiche';
 import Impostazioni     from '../pages/Admin/Impostazioni';
 import ChatAdmin        from '../pages/Admin/ChatAdmin';
 
+// Import del logo
+import logo from '../img/logo.png';
+
 const drawerWidth = 240;
 
 const menuItems = [
@@ -44,16 +48,18 @@ const menuItems = [
 ] as const;
 
 export default function AdminLayout({ user }: any) {
-  const { logout }                       = useAuth();
+  const { logout }                        = useAuth();
   const { hasUnreadAdmin, markAdminRead } = useChat();
-  const [mobileOpen, setMobileOpen]      = React.useState(false);
-  const location                         = useLocation();
+  const [mobileOpen, setMobileOpen]       = React.useState(false);
+  const location                          = useLocation();
 
   const toggleDrawer = () => setMobileOpen(v => !v);
 
   return (
     <Box sx={{ display:'flex' }}>
       <CssBaseline />
+
+      {/* AppBar con logo */}
       <AppBar position="fixed" sx={{ ml:{ sm:`${drawerWidth}px` } }}>
         <Toolbar>
           <IconButton
@@ -64,10 +70,23 @@ export default function AdminLayout({ user }: any) {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" sx={{ flexGrow:1 }}>
-            My Cron (Admin)
+
+          <Box sx={{ display:'flex', alignItems:'center', flexGrow: 1 }}>
+            {/* Logo a sinistra */}
+            <Box
+              component="img"
+              src={logo}
+              alt="My Cron Logo"
+              sx={{ height: 48, width: 'auto', mr: 1 }}
+            />
+            <Typography variant="h6" noWrap>
+              My Cron (Admin)
+            </Typography>
+          </Box>
+
+          <Typography>
+            Admin
           </Typography>
-          <Typography>Admin</Typography>
         </Toolbar>
       </AppBar>
 
@@ -77,7 +96,10 @@ export default function AdminLayout({ user }: any) {
         open={mobileOpen}
         onClose={toggleDrawer}
         ModalProps={{ keepMounted:true }}
-        sx={{ display:{ xs:'block', sm:'none' }, '& .MuiDrawer-paper':{ width:drawerWidth } }}
+        sx={{
+          display:{ xs:'block', sm:'none' },
+          '& .MuiDrawer-paper':{ width:drawerWidth }
+        }}
       >
         {renderDrawer()}
       </Drawer>
@@ -86,7 +108,10 @@ export default function AdminLayout({ user }: any) {
       <Drawer
         variant="permanent"
         open
-        sx={{ display:{ xs:'none', sm:'block' }, '& .MuiDrawer-paper':{ width:drawerWidth } }}
+        sx={{
+          display:{ xs:'none', sm:'block' },
+          '& .MuiDrawer-paper':{ width:drawerWidth }
+        }}
       >
         {renderDrawer()}
       </Drawer>
@@ -95,11 +120,11 @@ export default function AdminLayout({ user }: any) {
       <Box component="main" sx={{ flexGrow:1, p:3, ml:{ sm:`${drawerWidth}px` } }}>
         <Toolbar/>
         <Routes>
-          <Route path="/" element={<AdminPanel/>}/>
+          <Route path="/"                element={<AdminPanel/>}/>
           <Route path="/gestione-pazienti" element={<GestionePazienti/>}/>
-          <Route path="/statistiche" element={<Statistiche/>}/>
-          <Route path="/chat" element={<ChatAdmin/>}/>
-          <Route path="/impostazioni" element={<Impostazioni/>}/>
+          <Route path="/statistiche"    element={<Statistiche/>}/>
+          <Route path="/chat"            element={<ChatAdmin/>}/>
+          <Route path="/impostazioni"    element={<Impostazioni/>}/>
         </Routes>
       </Box>
     </Box>
@@ -109,7 +134,14 @@ export default function AdminLayout({ user }: any) {
     return (
       <Box sx={{ textAlign:'center', display:'flex', flexDirection:'column', height:'100%' }}>
         <Box sx={{ py:2 }}>
-          <Typography variant="h4">μm</Typography>
+          {/* Logo nel drawer header, se lo desideri */}
+          <Box
+            component="img"
+            src={logo}
+            alt="My Cron Logo"
+            sx={{ height: 48, width: 'auto', mb: 1 }}
+          />
+          <Typography variant="h5">My Cron</Typography>
         </Box>
         <List sx={{ flexGrow:1 }}>
           {menuItems.map(m => {
@@ -139,7 +171,7 @@ export default function AdminLayout({ user }: any) {
         </List>
         <Box sx={{ p:2, borderTop:'1px solid', borderColor:'divider' }}>
           <Typography variant="caption" color="text.secondary">
-            © {new Date().getFullYear()} My Cron V1.0 ® 
+            © {new Date().getFullYear()} My Cron V1.0 ®
           </Typography>
         </Box>
       </Box>
