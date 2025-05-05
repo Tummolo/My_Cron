@@ -53,7 +53,7 @@ const Segnali: FC = () => {
           <List disablePadding>
             {[
               'Sete intensa e persistente',
-              'Urinazioni frequenti',
+              'Minzioni frequenti',
               'Visione offuscata',
               'Stanchezza marcata'
             ].map((item, idx) => (
