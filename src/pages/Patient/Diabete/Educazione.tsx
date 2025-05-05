@@ -1,4 +1,3 @@
-// src/pages/Patient/Diabete/Educazione.tsx
 import React, { FC, useState } from 'react';
 import {
   Box,
@@ -30,6 +29,9 @@ import TabletIcon from '@mui/icons-material/Tablet';
 import 'chart.js/auto';
 import { Pie } from 'react-chartjs-2';
 import type { ChartOptions } from 'chart.js';
+
+// Import immagine panoramica
+import usImage from '../../../img/us.jpeg';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -128,6 +130,19 @@ const EducazioneDiabete: FC = () => {
               stare meglio e come usare correttamente i farmaci. Piccoli cambiamenti quotidiani
               portano a grandi cambiamenti nel futuro. Sei il protagonista della tua salute!”
             </Typography>
+            {/* Immagine centrata sotto testo */}
+            <Box display="flex" justifyContent="center" mt={2}>
+              <Box
+                component="img"
+                src={usImage}
+                alt="Illustrazione Diabete"
+                sx={{
+                  width: isMobile ? '100%' : '50%',
+                  height: 'auto',
+                  maxWidth: 300
+                }}
+              />
+            </Box>
           </CardContent>
         </Card>
       </TabPanel>
