@@ -1,3 +1,4 @@
+// src/components/ChatAdmin.tsx
 import React, { FC, useEffect, useState, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import {
@@ -12,7 +13,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 interface Msg {
   room: string;
-  user: 'user'|'admin';
+  user: 'user' | 'admin';
   text: string;
   ts: number;
 }
@@ -25,65 +26,68 @@ interface Patient {
 const API = import.meta.env.VITE_API_BASE as string;
 const SOCKET_URL = import.meta.env.VITE_CHAT_SERVER_URL as string;
 
-function makeSocket(): Socket {
-  return io(SOCKET_URL, {
-    transports: ['websocket'],
-    withCredentials: true
-  });
-}
-
 const ChatAdmin: FC = () => {
   const { user } = useAuth();
   const { markAdminRead } = useChat();
 
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [sel, setSel] = useState<Patient|null>(null);
-  const [unread, setUnread] = useState<Record<string,boolean>>({});
-  const [msgs, setMsgs] = useState<Msg[]>([]);
-  const [input, setInput] = useState('');
+  const [sel, setSel]         = useState<Patient | null>(null);
+  const [unread, setUnread]   = useState<Record<string,boolean>>({});
+  const [msgs, setMsgs]       = useState<Msg[]>([]);
+  const [input, setInput]     = useState('');
   const endRef = useRef<HTMLDivElement>(null);
-  const socketRef = useRef<Socket | null>(null);
 
-  // 1) Carico lista e apro la socket
+  const socketRef = useRef<Socket | null>(null);
+  // ref per avere sempre il sel corrente dentro il handler socket
+  const selRef = useRef<Patient | null>(sel);
+  useEffect(() => { selRef.current = sel; }, [sel]);
+
+  // 1) Mount: connetti socket, carica pazienti, join stanze, imposta handler
   useEffect(() => {
+    const socket = io(SOCKET_URL, {
+      transports: ['websocket'],
+      withCredentials: true
+    });
+    socketRef.current = socket;
+
+    // 1a) Carica lista pazienti
     fetch(`${API}/patients/list.php`, { credentials: 'include' })
       .then(r => r.json())
       .then((list: Patient[]) => {
         setPatients(list);
-        const socket = makeSocket();
-        socketRef.current = socket;
-
-        // join a tutte le stanze e set unread = false
+        // init unread a false per ciascuna stanza e join
+        const init: Record<string,boolean> = {};
         list.forEach(p => {
           const room = `private-chat-${p.user_id}`;
+          init[room] = false;
           socket.emit('join', room);
-          setUnread(u => ({ ...u, [room]: false }));
         });
-
-        // ricevo tutti i messaggi
-        socket.on('message', (m: Msg) => {
-          const { room } = m;
-          if (sel && room === `private-chat-${sel.user_id}`) {
-            // stanza attiva → aggiornamento chat corrente
-            setMsgs(ms => [...ms, m]);
-          } else {
-            // stanza inattiva → segno come non letta
-            setUnread(u => ({ ...u, [room]: true }));
-          }
-        });
+        setUnread(init);
       })
       .catch(console.error);
 
+    // 1b) Handler messaggi real-time
+    socket.on('message', (m: Msg) => {
+      const { room } = m;
+      // se sto visualizzando proprio quella stanza...
+      if (selRef.current && room === `private-chat-${selRef.current.user_id}`) {
+        setMsgs(ms => [...ms, m]);
+      } else {
+        // altrimenti metto badge
+        setUnread(u => ({ ...u, [room]: true }));
+      }
+    });
+
     return () => {
-      socketRef.current?.disconnect();
+      socket.disconnect();
       socketRef.current = null;
     };
-  // dipendo solo da `sel` per aggiornare il handler interno
-  }, [sel]);
+  }, []); // solo una volta
 
-  // 2) Quando cambio paziente selezionato → azzero badge e carico storia
+  // 2) Ogni volta che cambio paziente selezionato → carico storia + azzero badge
   useEffect(() => {
     if (!sel) return;
+
     markAdminRead();
     setMsgs([]);
     const room = `private-chat-${sel.user_id}`;
@@ -100,14 +104,15 @@ const ChatAdmin: FC = () => {
         })));
       })
       .catch(console.error);
+
   }, [sel, markAdminRead]);
 
-  // 3) scroll automatico
+  // 3) Scroll automatico in fondo
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [msgs]);
 
-  // 4) invio messaggio
+  // 4) Invio messaggio
   const send = () => {
     if (!sel || !input.trim()) return;
     const room = `private-chat-${sel.user_id}`;
@@ -118,40 +123,42 @@ const ChatAdmin: FC = () => {
       ts: Date.now()
     };
     setInput('');
-    // il server rilancerà solo agli altri nella stanza
     socketRef.current?.emit('message', message);
   };
 
   return (
     <Box display="flex" height="80vh">
+      {/* Sidebar pazienti */}
       <Box width={240} borderRight={1} p={1} overflow="auto">
         <Typography variant="h6">Chat Pazienti</Typography>
         <List>
           {patients.map(p => {
             const room = `private-chat-${p.user_id}`;
+            const has = !!unread[room];
             return (
               <ListItemButton
                 key={p.user_id}
                 selected={sel?.user_id === p.user_id}
                 onClick={() => setSel(p)}
               >
+                {/* Badge sull’avatar */}
                 <ListItemAvatar>
-                  {/* badge sull'avatar */}
                   <Badge
                     color="error"
                     variant="dot"
-                    invisible={!unread[room]}
+                    invisible={!has}
                     anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
                   >
-                    <Avatar><ChatBubbleIcon/></Avatar>
+                    <Avatar>
+                      <ChatBubbleIcon />
+                    </Avatar>
                   </Badge>
                 </ListItemAvatar>
-
-                {/* badge accanto al nome */}
+                {/* Badge accanto al nome */}
                 <Badge
                   color="error"
                   variant="dot"
-                  invisible={!unread[room]}
+                  invisible={!has}
                   sx={{ ml: 1 }}
                 >
                   <ListItemText primary={`${p.nome} ${p.cognome}`} />
@@ -162,6 +169,7 @@ const ChatAdmin: FC = () => {
         </List>
       </Box>
 
+      {/* Finestra chat */}
       {sel ? (
         <Box flexGrow={1} display="flex" flexDirection="column" p={2}>
           <Typography variant="h6">Chat con {sel.nome}</Typography>
@@ -173,13 +181,13 @@ const ChatAdmin: FC = () => {
                 <Box
                   key={i}
                   display="flex"
-                  justifyContent={m.user==='admin' ? 'flex-end' : 'flex-start'}
+                  justifyContent={m.user === 'admin' ? 'flex-end' : 'flex-start'}
                   mb={1}
                 >
                   <Box
                     px={2} py={1}
-                    bgcolor={m.user==='admin' ? 'primary.main' : 'grey.300'}
-                    color={m.user==='admin' ? 'primary.contrastText' : 'black'}
+                    bgcolor={m.user === 'admin' ? 'primary.main' : 'grey.300'}
+                    color={m.user === 'admin' ? 'primary.contrastText' : 'black'}
                     borderRadius={2}
                     position="relative"
                     maxWidth="60%"
@@ -188,9 +196,13 @@ const ChatAdmin: FC = () => {
                     <Typography
                       component="span"
                       sx={{
-                        position:'absolute', bottom:-16, right:4,
+                        position:'absolute',
+                        bottom:-16,
+                        right:4,
                         fontSize:'0.625rem',
-                        color: m.user==='admin' ? 'primary.contrastText' : 'text.secondary'
+                        color: m.user === 'admin'
+                          ? 'primary.contrastText'
+                          : 'text.secondary'
                       }}
                     >
                       {time}
@@ -199,16 +211,17 @@ const ChatAdmin: FC = () => {
                 </Box>
               );
             })}
-            <div ref={endRef}/>
+            <div ref={endRef} />
           </Paper>
 
           <Box display="flex">
             <TextField
-              fullWidth placeholder="Scrivi..."
+              fullWidth
+              placeholder="Scrivi..."
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e =>
-                e.key==='Enter' && !e.shiftKey &&
+                e.key === 'Enter' && !e.shiftKey &&
                 (e.preventDefault(), send())
               }
             />
