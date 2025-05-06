@@ -15,6 +15,7 @@ const Statistiche: FC = () => (
         <Grid item xs={12} sm={6} md={4} key={s.label}>
           <Card>
             <CardContent>
+              
               <Typography color="textSecondary" gutterBottom>
                 {s.label}
               </Typography>

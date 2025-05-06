@@ -1,4 +1,5 @@
 <?php
+// api/patients/terapia/read.php
 require_once __DIR__ . '/../../config.php';
 header('Content-Type: application/json; charset=utf-8');
 
@@ -10,16 +11,18 @@ if (!$user_id) {
 
 try {
     $stmt = $pdo->prepare("
-      SELECT id,
-             drug_type,
-             drug_name,
-             dosage,
-             schedule,
-             mode,
-             notes
-        FROM therapy_entries
-       WHERE user_id = :uid
-    ORDER BY created_at DESC
+      SELECT 
+        id,
+        drug_type,
+        drug_name,
+        dosage,
+        schedule,
+        mode,
+        notes,
+        created_at             -- ← aggiunto qui
+      FROM therapy_entries
+      WHERE user_id = :uid
+      ORDER BY created_at DESC
     ");
     $stmt->execute([':uid' => $user_id]);
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
