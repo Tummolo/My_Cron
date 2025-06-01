@@ -111,12 +111,14 @@ const Diario: FC = () => {
   const [infoEntry, setInfoEntry] = useState<Entry | null>(null)
 
   // Snackbar
-  const [snack, setSnack] = useState<{ open:boolean; message:string; severity:'success'|'error' }>({
-    open: false, message: '', severity: 'success'
+  const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success'
   })
 
   // Grafici
-  const [chartType, setChartType] = useState<'glicemia'|'pressione'|'peso'>('glicemia')
+  const [chartType, setChartType] = useState<'glicemia' | 'pressione' | 'peso'>('glicemia')
   const apiBase = 'https://ios2020.altervista.org/api/patients/diario'
 
   // —––––– READ
@@ -127,32 +129,40 @@ const Diario: FC = () => {
       const data = await res.json()
       setEntries(Array.isArray(data) ? data : [])
     } catch {
-      setSnack({ open:true, message:'Errore caricamento', severity:'error' })
+      setSnack({ open: true, message: 'Errore caricamento', severity: 'error' })
     } finally {
       setLoading(false)
     }
   }
-  useEffect(() => { fetchEntries() }, [])
+  useEffect(() => {
+    fetchEntries()
+  }, [])
 
   // Handlers generali
-  const handleTab = (_:any, v:number) => setTab(v)
-  const handleChange = (field: keyof Entry, v:any) => {
+  const handleTab = (_: any, v: number) => setTab(v)
+  const handleChange = (field: keyof Entry, v: any) => {
     setForm(f => ({ ...f, [field]: v }))
   }
-  const closeSnack = () => setSnack(s => ({ ...s, open:false }))
+  const closeSnack = () => setSnack(s => ({ ...s, open: false }))
 
   // Validazione data
-  const isDateValid = /^\d{4}-\d{2}-\d{2}$/.test(form.entry_date||'')
+  const isDateValid = /^\d{4}-\d{2}-\d{2}$/.test(form.entry_date || '')
 
   // —––––– CREATE / UPDATE
   const openNew = () => {
     setIsEdit(false)
     setEditId(null)
     setForm({
-      entry_date: '', glicemia_pre:null, glicemia_post:null,
-      chetoni_checked:false, peso:null,
-      pressione_sistolica:null, pressione_diastolica:null,
-      attivita:'', alimentazione:'', note:''
+      entry_date: '',
+      glicemia_pre: null,
+      glicemia_post: null,
+      chetoni_checked: false,
+      peso: null,
+      pressione_sistolica: null,
+      pressione_diastolica: null,
+      attivita: '',
+      alimentazione: '',
+      note: ''
     })
     setDialogOpen(true)
   }
@@ -164,79 +174,86 @@ const Diario: FC = () => {
   }
   const handleSave = async () => {
     if (!form.entry_date || !isDateValid) {
-      setSnack({ open:true, message:'Data non valida', severity:'error' })
+      setSnack({ open: true, message: 'Data non valida', severity: 'error' })
       return
     }
     const url = isEdit ? `${apiBase}/update.php` : `${apiBase}/create.php`
     const payload = { ...form, user_id, id: editId }
     try {
-      const res = await fetch(url,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
       const json = await res.json()
       if (json.success) {
-        setSnack({ open:true, message:isEdit?'Voce aggiornata':'Voce creata', severity:'success' })
+        setSnack({ open: true, message: isEdit ? 'Voce aggiornata' : 'Voce creata', severity: 'success' })
         setDialogOpen(false)
         fetchEntries()
       } else throw new Error()
     } catch {
-      setSnack({ open:true, message:'Errore salvataggio', severity:'error' })
+      setSnack({ open: true, message: 'Errore salvataggio', severity: 'error' })
     }
   }
 
   // —––––– DELETE
-  const handleDelete = async (id:number) => {
+  const handleDelete = async (id: number) => {
     try {
-      const res = await fetch(`${apiBase}/delete.php`,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
+      const res = await fetch(`${apiBase}/delete.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, user_id })
       })
       const json = await res.json()
       if (json.success) {
-        setSnack({ open:true, message:'Voce cancellata', severity:'success' })
+        setSnack({ open: true, message: 'Voce cancellata', severity: 'success' })
         fetchEntries()
       } else throw new Error()
     } catch {
-      setSnack({ open:true, message:'Errore cancellazione', severity:'error' })
+      setSnack({ open: true, message: 'Errore cancellazione', severity: 'error' })
     }
   }
 
   // —––––– INFO
-  const openInfo = (e:Entry) => {
+  const openInfo = (e: Entry) => {
     setInfoEntry(e)
     setInfoDialogOpen(true)
   }
   const closeInfo = () => setInfoDialogOpen(false)
 
-  // —––––– Chart Data
-  const sorted = [...entries].sort((a,b)=>a.entry_date.localeCompare(b.entry_date))
-  const labels = sorted.map(e=>e.entry_date)
+  // —––––– Data ordinate
+  // Ascendente (vecchio→recente) per i grafici
+  const sortedAsc = [...entries].sort((a, b) => a.entry_date.localeCompare(b.entry_date))
+  // Discendente (recente→vecchio) per la tabella Storico
+  const sortedDesc = [...entries].sort((a, b) => b.entry_date.localeCompare(a.entry_date))
+
+  // —––––– Chart Data (usando sortedAsc)
+  const labels = sortedAsc.map(e => e.entry_date)
   const glicemiaData = {
     labels,
     datasets: [
-      { label:'Pre', data: sorted.map(e=>e.glicemia_pre||0), borderColor:'blue', fill:false },
-      { label:'Post', data: sorted.map(e=>e.glicemia_post||0), borderColor:'red', fill:false }
+      { label: 'Pre', data: sortedAsc.map(e => e.glicemia_pre || 0), borderColor: 'blue', fill: false },
+      { label: 'Post', data: sortedAsc.map(e => e.glicemia_post || 0), borderColor: 'red', fill: false }
     ]
   }
   const pressureData = {
     labels,
     datasets: [
-      { label:'Sistolica', data: sorted.map(e=>e.pressione_sistolica||0), borderColor:'blue', fill:false },
-      { label:'Diastolica', data: sorted.map(e=>e.pressione_diastolica||0), borderColor:'red', fill:false }
+      { label: 'Sistolica', data: sortedAsc.map(e => e.pressione_sistolica || 0), borderColor: 'blue', fill: false },
+      { label: 'Diastolica', data: sortedAsc.map(e => e.pressione_diastolica || 0), borderColor: 'red', fill: false }
     ]
   }
   const weightData = {
     labels,
-    datasets: [{ label:'Peso (kg)', data: sorted.map(e=>e.peso||0), borderColor:'green', fill:false }]
+    datasets: [{ label: 'Peso (kg)', data: sortedAsc.map(e => e.peso || 0), borderColor: 'green', fill: false }]
   }
-  const chartOpts = { responsive:true as const, plugins:{ legend:{ position:'bottom' as const } } }
+  const chartOpts = { responsive: true as const, plugins: { legend: { position: 'bottom' as const } } }
 
   return (
     <Box p={2}>
-      <Typography variant="h5" gutterBottom>📊 Diario della Salute</Typography>
+      <Typography variant="h5" gutterBottom>
+        📊 Diario della Salute
+      </Typography>
       <Tabs value={tab} onChange={handleTab} variant="fullWidth">
         <Tab label="Inserimento" />
         <Tab label="Storico" />
@@ -245,7 +262,7 @@ const Diario: FC = () => {
 
       {/* Inserimento */}
       <TabPanel value={tab} index={0}>
-        <Button variant="contained" onClick={openNew} sx={{ mb:2 }}>
+        <Button variant="contained" onClick={openNew} sx={{ mb: 2 }}>
           Nuova Voce
         </Button>
         <Typography color="text.secondary">
@@ -262,33 +279,37 @@ const Diario: FC = () => {
             <TableHead>
               <TableRow>
                 <TableCell />
-                <TableCell sx={{ fontWeight:'bold' }}>Data</TableCell>
-                <TableCell sx={{ fontWeight:'bold' }}>Pre / Post</TableCell>
-                <TableCell sx={{ fontWeight:'bold' }}>Chetoni</TableCell>
-                <TableCell sx={{ fontWeight:'bold' }}>Peso</TableCell>
-                <TableCell sx={{ fontWeight:'bold' }}>Pressione</TableCell>
-                <TableCell sx={{ fontWeight:'bold' }}>Azioni</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Data</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Pre / Post</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Chetoni</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Peso</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Pressione</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Azioni</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {sorted.map(e=>(
+              {sortedDesc.map(e => (
                 <TableRow key={e.id}>
                   <TableCell>
-                    <IconButton size="small" onClick={()=>openInfo(e)}>
-                      <InfoIcon fontSize="small"/>
+                    <IconButton size="small" onClick={() => openInfo(e)}>
+                      <InfoIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
                   <TableCell>{e.entry_date}</TableCell>
-                  <TableCell>{e.glicemia_pre||'-'} / {e.glicemia_post||'-'}</TableCell>
-                  <TableCell>{e.chetoni_checked ? '✔️' : '—'}</TableCell>
-                  <TableCell>{e.peso||'-'}</TableCell>
-                  <TableCell>{e.pressione_sistolica||'-'} / {e.pressione_diastolica||'-'}</TableCell>
                   <TableCell>
-                    <IconButton size="small" onClick={()=>openEdit(e)}>
-                      <EditIcon fontSize="small"/>
+                    {e.glicemia_pre || '-'} / {e.glicemia_post || '-'}
+                  </TableCell>
+                  <TableCell>{e.chetoni_checked ? '✔️' : '—'}</TableCell>
+                  <TableCell>{e.peso || '-'}</TableCell>
+                  <TableCell>
+                    {e.pressione_sistolica || '-'} / {e.pressione_diastolica || '-'}
+                  </TableCell>
+                  <TableCell>
+                    <IconButton size="small" onClick={() => openEdit(e)}>
+                      <EditIcon fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" color="error" onClick={()=>handleDelete(e.id)}>
-                      <DeleteIcon fontSize="small"/>
+                    <IconButton size="small" color="error" onClick={() => handleDelete(e.id)}>
+                      <DeleteIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
                 </TableRow>
@@ -300,32 +321,32 @@ const Diario: FC = () => {
 
       {/* Visualizzazioni */}
       <TabPanel value={tab} index={2}>
-        <FormControl fullWidth sx={{ mb:2 }}>
+        <FormControl fullWidth sx={{ mb: 2 }}>
           <InputLabel id="chart-select-label">Grafico</InputLabel>
           <Select
             labelId="chart-select-label"
             label="Grafico"
             value={chartType}
-            onChange={e=>setChartType(e.target.value as any)}
+            onChange={e => setChartType(e.target.value as any)}
           >
             <MenuItem value="glicemia">Glicemia</MenuItem>
             <MenuItem value="pressione">Pressione</MenuItem>
             <MenuItem value="peso">Peso</MenuItem>
           </Select>
         </FormControl>
-        {chartType==='glicemia' && (
+        {chartType === 'glicemia' && (
           <Box>
             <Typography variant="h6">Glicemia (Pre/Post)</Typography>
             <Line data={glicemiaData} options={chartOpts} />
           </Box>
         )}
-        {chartType==='pressione' && (
+        {chartType === 'pressione' && (
           <Box>
             <Typography variant="h6">Pressione (Sistolica/Diastolica)</Typography>
             <Line data={pressureData} options={chartOpts} />
           </Box>
         )}
-        {chartType==='peso' && (
+        {chartType === 'peso' && (
           <Box>
             <Typography variant="h6">Peso</Typography>
             <Line data={weightData} options={chartOpts} />
@@ -334,7 +355,7 @@ const Diario: FC = () => {
       </TabPanel>
 
       {/* Dialog Creazione/Modifica */}
-      <Dialog open={dialogOpen} onClose={()=>setDialogOpen(false)} fullWidth maxWidth="sm">
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>{isEdit ? 'Modifica Voce' : 'Nuova Voce'}</DialogTitle>
         <DialogContent>
           <TextField
@@ -343,9 +364,9 @@ const Diario: FC = () => {
             fullWidth
             margin="dense"
             value={form.entry_date}
-            onChange={e=>handleChange('entry_date', e.target.value)}
-            InputLabelProps={{ shrink:true }}
-            inputProps={{ pattern:'\\d{4}-\\d{2}-\\d{2}' }}
+            onChange={e => handleChange('entry_date', e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            inputProps={{ pattern: '\\d{4}-\\d{2}-\\d{2}' }}
             error={!!form.entry_date && !isDateValid}
             helperText={!!form.entry_date && !isDateValid ? 'Formato AAAA-MM-GG' : ' '}
           />
@@ -354,24 +375,24 @@ const Diario: FC = () => {
             type="number"
             fullWidth
             margin="dense"
-            value={form.glicemia_pre||''}
-            onChange={e=>handleChange('glicemia_pre', +e.target.value)}
+            value={form.glicemia_pre || ''}
+            onChange={e => handleChange('glicemia_pre', +e.target.value)}
           />
           <TextField
             label="Glicemia Post"
             type="number"
             fullWidth
             margin="dense"
-            value={form.glicemia_post||''}
-            onChange={e=>handleChange('glicemia_post', +e.target.value)}
+            value={form.glicemia_post || ''}
+            onChange={e => handleChange('glicemia_post', +e.target.value)}
           />
-          {form.glicemia_post!>250 && (
-            <Box sx={{ mb:1 }}>
+          {form.glicemia_post! > 250 && (
+            <Box sx={{ mb: 1 }}>
               <FormControlLabel
                 control={
                   <Checkbox
-                    checked={form.chetoni_checked||false}
-                    onChange={e=>handleChange('chetoni_checked', e.target.checked)}
+                    checked={form.chetoni_checked || false}
+                    onChange={e => handleChange('chetoni_checked', e.target.checked)}
                   />
                 }
                 label="Hai controllato i chetoni?"
@@ -386,33 +407,33 @@ const Diario: FC = () => {
             type="number"
             fullWidth
             margin="dense"
-            value={form.peso||''}
-            onChange={e=>handleChange('peso', +e.target.value)}
+            value={form.peso || ''}
+            onChange={e => handleChange('peso', +e.target.value)}
           />
-          <Box sx={{ display:'flex', gap:1 }}>
+          <Box sx={{ display: 'flex', gap: 1 }}>
             <TextField
               label="Pressione Sist."
               type="number"
               fullWidth
               margin="dense"
-              value={form.pressione_sistolica||''}
-              onChange={e=>handleChange('pressione_sistolica', +e.target.value)}
+              value={form.pressione_sistolica || ''}
+              onChange={e => handleChange('pressione_sistolica', +e.target.value)}
             />
             <TextField
               label="Pressione Diast."
               type="number"
               fullWidth
               margin="dense"
-              value={form.pressione_diastolica||''}
-              onChange={e=>handleChange('pressione_diastolica', +e.target.value)}
+              value={form.pressione_diastolica || ''}
+              onChange={e => handleChange('pressione_diastolica', +e.target.value)}
             />
           </Box>
           <TextField
             label="Attività"
             fullWidth
             margin="dense"
-            value={form.attivita||''}
-            onChange={e=>handleChange('attivita', e.target.value)}
+            value={form.attivita || ''}
+            onChange={e => handleChange('attivita', e.target.value)}
           />
           <TextField
             label="Alimentazione"
@@ -420,8 +441,8 @@ const Diario: FC = () => {
             multiline
             rows={2}
             margin="dense"
-            value={form.alimentazione||''}
-            onChange={e=>handleChange('alimentazione', e.target.value)}
+            value={form.alimentazione || ''}
+            onChange={e => handleChange('alimentazione', e.target.value)}
           />
           <TextField
             label="Note"
@@ -429,12 +450,12 @@ const Diario: FC = () => {
             multiline
             rows={2}
             margin="dense"
-            value={form.note||''}
-            onChange={e=>handleChange('note', e.target.value)}
+            value={form.note || ''}
+            onChange={e => handleChange('note', e.target.value)}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={()=>setDialogOpen(false)}>Annulla</Button>
+          <Button onClick={() => setDialogOpen(false)}>Annulla</Button>
           <Button variant="contained" onClick={handleSave}>
             {isEdit ? 'Salva' : 'Crea'}
           </Button>
@@ -445,11 +466,17 @@ const Diario: FC = () => {
       <Dialog open={infoDialogOpen} onClose={closeInfo} fullWidth maxWidth="sm">
         <DialogTitle>Dettagli Voce del {infoEntry?.entry_date}</DialogTitle>
         <DialogContent>
-          <Typography variant="subtitle2" sx={{ fontWeight:'bold', mt:1 }}>Attività</Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mt: 1 }}>
+            Attività
+          </Typography>
           <Typography>{infoEntry?.attivita || '–'}</Typography>
-          <Typography variant="subtitle2" sx={{ fontWeight:'bold', mt:2 }}>Alimentazione</Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mt: 2 }}>
+            Alimentazione
+          </Typography>
           <Typography>{infoEntry?.alimentazione || '–'}</Typography>
-          <Typography variant="subtitle2" sx={{ fontWeight:'bold', mt:2 }}>Note</Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mt: 2 }}>
+            Note
+          </Typography>
           <Typography>{infoEntry?.note || '–'}</Typography>
         </DialogContent>
         <DialogActions>
@@ -462,7 +489,7 @@ const Diario: FC = () => {
         open={snack.open}
         autoHideDuration={3000}
         onClose={closeSnack}
-        anchorOrigin={{ vertical:'bottom', horizontal:'center' }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
         <Alert onClose={closeSnack} severity={snack.severity} variant="filled">
           {snack.message}

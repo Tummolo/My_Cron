@@ -1,5 +1,4 @@
-// src/layouts/AdminLayout.tsx
-import React from 'react';
+import React from 'react'
 import {
   AppBar,
   Toolbar,
@@ -13,7 +12,7 @@ import {
   Box,
   CssBaseline,
   Badge
-} from '@mui/material';
+} from '@mui/material'
 import {
   Menu as MenuIcon,
   Home as HomeIcon,
@@ -22,22 +21,22 @@ import {
   Chat as ChatIcon,
   Settings as SettingsIcon,
   Logout as LogoutIcon
-} from '@mui/icons-material';
-import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { useChat } from '../contexts/ChatContext';
+} from '@mui/icons-material'
+import { Routes, Route, Link, useLocation } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import { useChat } from '../contexts/ChatContext'
 
 // pagine admin
-import AdminPanel       from '../pages/Admin/AdminPanel';
-import GestionePazienti from '../pages/Admin/GestionePazienti';
-import Statistiche      from '../pages/Admin/Statistiche';
-import Impostazioni     from '../pages/Admin/Impostazioni';
-import ChatAdmin        from '../pages/Admin/ChatAdmin';
+import AdminPanel       from '../pages/Admin/AdminPanel'
+import GestionePazienti from '../pages/Admin/GestionePazienti'
+import Statistiche      from '../pages/Admin/Statistiche'
+import Impostazioni     from '../pages/Admin/Impostazioni'
+import ChatAdmin        from '../pages/Admin/ChatAdmin'
 
-// Import del logo
-import logo from '../img/logo.png';
+// logo
+import logo from '../img/logo.png'
 
-const drawerWidth = 240;
+const drawerWidth = 240
 
 const menuItems = [
   { text:'Dashboard',         icon:<HomeIcon/>,    path:'/'                  },
@@ -45,21 +44,21 @@ const menuItems = [
   { text:'Statistiche',       icon:<BarChartIcon/>,path:'/statistiche'      },
   { text:'Chat',              icon:<ChatIcon/>,    path:'/chat'             },
   { text:'Impostazioni',      icon:<SettingsIcon/>,path:'/impostazioni'     }
-] as const;
+] as const
 
 export default function AdminLayout({ user }: any) {
-  const { logout }                        = useAuth();
-  const { hasUnreadAdmin, markAdminRead } = useChat();
-  const [mobileOpen, setMobileOpen]       = React.useState(false);
-  const location                          = useLocation();
+  const { logout }                        = useAuth()
+  const { hasUnreadAdmin, markAdminRead } = useChat()
+  const [mobileOpen, setMobileOpen]       = React.useState(false)
+  const location                          = useLocation()
 
-  const toggleDrawer = () => setMobileOpen(v => !v);
+  const toggleDrawer = () => setMobileOpen(v => !v)
 
   return (
     <Box sx={{ display:'flex' }}>
       <CssBaseline />
 
-      {/* AppBar con logo */}
+      {/* AppBar */}
       <AppBar position="fixed" sx={{ ml:{ sm:`${drawerWidth}px` } }}>
         <Toolbar>
           <IconButton
@@ -72,7 +71,6 @@ export default function AdminLayout({ user }: any) {
           </IconButton>
 
           <Box sx={{ display:'flex', alignItems:'center', flexGrow: 1 }}>
-            {/* Logo a sinistra */}
             <Box
               component="img"
               src={logo}
@@ -84,9 +82,7 @@ export default function AdminLayout({ user }: any) {
             </Typography>
           </Box>
 
-          <Typography>
-            Admin
-          </Typography>
+          <Typography>Admin</Typography>
         </Toolbar>
       </AppBar>
 
@@ -120,21 +116,20 @@ export default function AdminLayout({ user }: any) {
       <Box component="main" sx={{ flexGrow:1, p:3, ml:{ sm:`${drawerWidth}px` } }}>
         <Toolbar/>
         <Routes>
-          <Route path="/"                element={<AdminPanel/>}/>
-          <Route path="/gestione-pazienti" element={<GestionePazienti/>}/>
-          <Route path="/statistiche"    element={<Statistiche/>}/>
-          <Route path="/chat"            element={<ChatAdmin/>}/>
-          <Route path="/impostazioni"    element={<Impostazioni/>}/>
+          <Route path="/"                   element={<AdminPanel/>} />
+          <Route path="/gestione-pazienti" element={<GestionePazienti/>} />
+          <Route path="/statistiche"       element={<Statistiche/>} />
+          <Route path="/chat"               element={<ChatAdmin/>} />
+          <Route path="/impostazioni"       element={<Impostazioni/>} />
         </Routes>
       </Box>
     </Box>
-  );
+  )
 
   function renderDrawer() {
     return (
       <Box sx={{ textAlign:'center', display:'flex', flexDirection:'column', height:'100%' }}>
         <Box sx={{ py:2 }}>
-          {/* Logo nel drawer header, se lo desideri */}
           <Box
             component="img"
             src={logo}
@@ -145,7 +140,7 @@ export default function AdminLayout({ user }: any) {
         </Box>
         <List sx={{ flexGrow:1 }}>
           {menuItems.map(m => {
-            const selected = location.pathname === m.path;
+            const selected = location.pathname === m.path
             return (
               <ListItemButton
                 key={m.text}
@@ -162,7 +157,7 @@ export default function AdminLayout({ user }: any) {
                 </ListItemIcon>
                 <ListItemText primary={m.text} />
               </ListItemButton>
-            );
+            )
           })}
           <ListItemButton onClick={logout}>
             <ListItemIcon><LogoutIcon/></ListItemIcon>
@@ -175,6 +170,6 @@ export default function AdminLayout({ user }: any) {
           </Typography>
         </Box>
       </Box>
-    );
+    )
   }
 }

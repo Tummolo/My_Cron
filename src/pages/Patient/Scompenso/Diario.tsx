@@ -4,7 +4,7 @@ import { Typography, Box } from '@mui/material'
 const Diario: FC = () => (
   <Box>
     <Typography variant="h5" gutterBottom>📊 Diario della Salute</Typography>
-    <Typography>Contenuti in sviluppo...</Typography>
+    <Typography>Contenuti in sviluppo... da gnappo.....</Typography>
   </Box>
 )
 export default Diario
