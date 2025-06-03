@@ -1,6 +1,13 @@
 // src/layouts/PatientLayout.tsx
+
 import React, { useEffect, useState } from 'react';
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import {
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  useLocation,
+} from 'react-router-dom';
 import {
   AppBar,
   Toolbar,
@@ -31,16 +38,16 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useChat } from '../contexts/ChatContext';
 
-// pages
+// Pagine del Patient
 import Home from '../pages/Patient/Home';
 import Educazione from '../pages/Patient/Educazione';
 import Segnali from '../pages/Patient/Segnali';
 import Acutizzazioni from '../pages/Patient/Acutizzazioni';
 import Diario from '../pages/Patient/Diario';
 import Terapia from '../pages/Patient/Terapia';
-import Chat from '../pages/Patient/Chat';
+import Chat from '../pages/Patient/Chat.tsx'; // <- il componente di chat che abbiamo creato
 
-// Import del logo
+// Logo (inserisci il tuo logo in /src/img/logo.png)
 import logo from '../img/logo.png';
 
 const drawerWidth = 240;
@@ -53,12 +60,11 @@ export default function PatientLayout({ user }: any) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Chiude il drawer alla navigazione
+  // Chiudo il Drawer quando cambio rotta
   useEffect(() => {
     if (mobileOpen) {
       setMobileOpen(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
   const handleDrawerToggle = () => {
@@ -77,18 +83,25 @@ export default function PatientLayout({ user }: any) {
       icon: <ChatIcon />,
       path: '/chat',
       badge: hasUnreadUser,
-      action: () => { markUserRead(); navigate('/chat'); },
+      action: () => {
+        markUserRead();
+        navigate('/chat');
+      },
     },
     {
       text: 'Logout',
       icon: <LogoutIcon />,
-      action: () => { logout(); navigate('/login'); },
+      action: () => {
+        logout();
+        navigate('/login');
+      },
     },
   ];
 
-  // Contenuto del drawer
   const drawerContent = (
-    <Box sx={{ width: drawerWidth, height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <Box
+      sx={{ width: drawerWidth, height: '100vh', display: 'flex', flexDirection: 'column' }}
+    >
       <Toolbar />
       <Divider />
       <List sx={{ flexGrow: 1 }}>
@@ -111,7 +124,14 @@ export default function PatientLayout({ user }: any) {
           </ListItemButton>
         ))}
       </List>
-      <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
+      <Box
+        sx={{
+          p: 2,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          textAlign: 'center',
+        }}
+      >
         <Typography variant="body2" color="text.secondary">
           © {new Date().getFullYear()} My Cron V1.0 ® Powered by Your Health
         </Typography>
@@ -136,13 +156,7 @@ export default function PatientLayout({ user }: any) {
             >
               <MenuIcon />
             </IconButton>
-            {/* Logo a sinistra */}
-            <Box
-              component="img"
-              src={logo}
-              alt="My Cron Logo"
-              sx={{ height: 48, width: 'auto', mr: 1 }}
-            />
+            <Box component="img" src={logo} alt="My Cron Logo" sx={{ height: 48, width: 'auto', mr: 1 }} />
             <Typography variant="h6" noWrap component="div">
               My Cron
             </Typography>
@@ -150,7 +164,7 @@ export default function PatientLayout({ user }: any) {
         </Toolbar>
       </AppBar>
 
-      {/* Drawer lato */}
+      {/* Drawer lato (mobile + desktop) */}
       <Drawer
         variant="temporary"
         open={mobileOpen}
